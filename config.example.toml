@@ -1,0 +1,14 @@
+[models.gemini]
+model = "gemini-3.1-flash-lite"
+rpm = 15
+
+[models.gemma]
+model = "gemma-4-31b-it"
+rpm = 15
+
+[generation]
+temperature = 0.2
+max_output_tokens = 4096
+
+[codeql]
+query_suite = "python-security-extended.qls"

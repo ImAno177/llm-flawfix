@@ -1,0 +1,18 @@
+services:
+  runner:
+    build:
+      context: .
+      args:
+        CODEQL_VERSION: v2.25.4
+    env_file:
+      - .env
+    environment:
+      CODEQL_BIN: /opt/codeql/codeql
+      CODEQL_REPO: /opt/codeql-repo
+      PYTHONPATH: /workspace
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - ./data:/workspace/data
+      - ./runs:/workspace/runs
+      - ./.cache:/workspace/.cache
