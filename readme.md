@@ -1,85 +1,85 @@
 # SecurityEval Gemini/Gemma Automation
 
-## Muc Luc
+## Table Of Contents
 
-- [Tong Quan](#tong-quan)
-- [Tai Lieu Lien Quan](#tai-lieu-lien-quan)
-- [Tinh Nang Chinh](#tinh-nang-chinh)
-- [Cau Truc Repo](#cau-truc-repo)
-- [Ket Qua Full Run](#ket-qua-full-run)
-- [Lenh Nhanh](#lenh-nhanh)
-- [Bao Mat Va Du Lieu Sinh Ra](#bao-mat-va-du-lieu-sinh-ra)
+- [Overview](#overview)
+- [Related Documents](#related-documents)
+- [Key Features](#key-features)
+- [Repository Layout](#repository-layout)
+- [Full Run Results](#full-run-results)
+- [Quick Commands](#quick-commands)
+- [Secrets And Generated Data](#secrets-and-generated-data)
 
-## Tong Quan
+## Overview
 
-Repo này tự động hóa thí nghiệm SecurityEval để đánh giá khả năng sinh mã Python an toàn và tự sửa lỗi bảo mật của **Gemini 3.1 Flash-Lite** và **Gemma 4 31B IT**. Pipeline gọi model, lưu response/code, chạy CodeQL, parse SARIF và xuất report Markdown/CSV.
+This repository automates SecurityEval experiments for evaluating how **Gemini 3.1 Flash-Lite** and **Gemma 4 31B IT** generate secure Python code and repair security issues. The pipeline calls the models, stores responses and extracted code, runs CodeQL, parses SARIF, and exports Markdown/CSV reports.
 
-Tất cả được đóng gói bằng Docker để tránh phụ thuộc CodeQL/Python cài trên máy host.
+Everything runs through Docker so the host does not need a local Python, CodeQL CLI, or CodeQL query installation.
 
-## Tai Lieu Lien Quan
+## Related Documents
 
-- [agent.md](agent.md): Mô tả kế hoạch thí nghiệm, vai trò agent, model mapping, metrics và trạng thái kết quả.
-- [setup.md](setup.md): Hướng dẫn dựng môi trường, cấu hình API key, chạy full dataset, resume và debug.
+- [agent.md](agent.md): Experiment plan, agent role, model mapping, metrics, and current result status.
+- [setup.md](setup.md): Environment setup, API key configuration, full dataset execution, resume, and debugging guide.
 
-Tóm tắt nhanh:
+Quick summary:
 
-| File | Tóm tắt |
+| File | Summary |
 |---|---|
-| [agent.md](agent.md) | Tài liệu nghiệp vụ/thí nghiệm: chạy nhánh nào, model nào làm gì, đo metric nào. |
-| [setup.md](setup.md) | Tài liệu vận hành: build Docker, chạy command, kiểm tra output và xử lý lỗi thường gặp. |
+| [agent.md](agent.md) | Experiment document: which branches run, which model does what, and which metrics are measured. |
+| [setup.md](setup.md) | Operations document: build Docker, run commands, inspect outputs, and handle common failures. |
 
-## Tinh Nang Chinh
+## Key Features
 
-- Tải SecurityEval 121 task Python.
-- Chạy 4 nhánh: `vanilla`, `self_hints`, `direct_repair`, `explained_repair`.
-- Chạy Gemini và Gemma song song nhưng tôn trọng 15 RPM mỗi model.
-- Cache response/code để resume không gọi API lại.
-- Chạy CodeQL trong Docker và xuất SARIF.
-- Xuất `summary.md`, `metrics.csv`, `findings.csv`.
+- Downloads the 121-task SecurityEval dataset.
+- Runs 4 branches: `vanilla`, `self_hints`, `direct_repair`, and `explained_repair`.
+- Runs Gemini and Gemma concurrently while respecting 15 RPM per model.
+- Caches responses and generated code so runs can resume without repeating completed API calls.
+- Runs CodeQL inside Docker and exports SARIF.
+- Exports `summary.md`, `metrics.csv`, and `findings.csv`.
 
-## Cau Truc Repo
+## Repository Layout
 
 ```text
 .
-├── Dockerfile
-├── docker-compose.yml
-├── config.example.toml
-├── run_experiments.py
-├── secure_code_eval/
-│   ├── codeql.py
-│   ├── config.py
-│   ├── datasets.py
-│   ├── extract.py
-│   ├── llm.py
-│   ├── metrics.py
-│   ├── pipeline.py
-│   ├── prompts.py
-│   ├── rate_limit.py
-│   └── sarif.py
-├── tests/
-│   └── test_core.py
-├── agent.md
-├── readme.md
-└── setup.md
+|-- Dockerfile
+|-- docker-compose.yml
+|-- config.example.toml
+|-- run_experiments.py
+|-- secure_code_eval/
+|   |-- codeql.py
+|   |-- config.py
+|   |-- datasets.py
+|   |-- extract.py
+|   |-- llm.py
+|   |-- metrics.py
+|   |-- pipeline.py
+|   |-- prompts.py
+|   |-- rate_limit.py
+|   `-- sarif.py
+|-- tests/
+|   `-- test_core.py
+|-- agent.md
+|-- readme.md
+`-- setup.md
 ```
 
-Các thư mục sinh ra khi chạy:
+Generated directories:
 
-| Path | Nội dung |
+| Path | Contents |
 |---|---|
-| `data/` | Dataset SecurityEval tải về. |
-| `runs/` | Code sinh ra, raw responses, CodeQL DB/SARIF, report. |
-| `.cache/` | Cache phụ trợ nếu cần. |
+| `data/` | Downloaded SecurityEval dataset. |
+| `runs/` | Generated code, raw responses, CodeQL DB/SARIF files, and reports. |
+| `.cache/` | Optional supporting cache. |
 
-## Ket Qua Full Run
+## Full Run Results
 
-Full run hiện có tại:
+The completed full run is available at:
 
 - [runs/full-securityeval/reports/summary.md](runs/full-securityeval/reports/summary.md)
 - [runs/full-securityeval/reports/metrics.csv](runs/full-securityeval/reports/metrics.csv)
 - [runs/full-securityeval/reports/findings.csv](runs/full-securityeval/reports/findings.csv)
 
-Tóm tắt:
+Summary:
 
 | Experiment | Model | N | TarV-R | AllV-R | Repair Rate |
 |---|---:|---:|---:|---:|---:|
@@ -91,34 +91,34 @@ Tóm tắt:
 | direct_repair | gemma | 38 | 0.00% | 26.32% | 73.68% |
 | explained_repair | gemma | 38 | 0.00% | 21.05% | 78.95% |
 
-## Lenh Nhanh
+## Quick Commands
 
-Build Docker image:
+Build the Docker image:
 
 ```powershell
 docker compose build
 ```
 
-Tải dataset:
+Download the dataset:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py prepare
 ```
 
-Chạy full dataset:
+Run the full dataset:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py all --run-id full-securityeval --max-concurrency 64
 ```
 
-Tạo lại report từ artifact đã có:
+Regenerate the report from existing artifacts:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py report --run-id full-securityeval
 ```
 
-## Bao Mat Va Du Lieu Sinh Ra
+## Secrets And Generated Data
 
-- `.env` chứa API key và đã nằm trong [.gitignore](.gitignore).
-- `data/`, `runs/`, `.cache/` không được track trong git để tránh commit dataset, raw model responses, CodeQL DB và report lớn.
-- Nếu API key từng được chia sẻ qua chat/log, nên rotate key trong Google AI Studio trước khi dùng dài hạn.
+- `.env` stores the API key and is ignored by [.gitignore](.gitignore).
+- `data/`, `runs/`, and `.cache/` are not tracked to avoid committing datasets, raw model responses, CodeQL databases, and large reports.
+- If an API key has been shared through chat or logs, rotate it in Google AI Studio before long-term use.

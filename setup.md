@@ -1,58 +1,58 @@
 # Setup And Run Guide
 
-## Muc Luc
+## Table Of Contents
 
-- [Tong Quan Setup](#tong-quan-setup)
-- [Tai Lieu Lien Quan](#tai-lieu-lien-quan)
-- [Yeu Cau](#yeu-cau)
-- [Cau Hinh API Key](#cau-hinh-api-key)
+- [Setup Overview](#setup-overview)
+- [Related Documents](#related-documents)
+- [Requirements](#requirements)
+- [API Key Configuration](#api-key-configuration)
 - [Build Docker](#build-docker)
-- [Chay Pipeline](#chay-pipeline)
-- [Resume Va Debug](#resume-va-debug)
-- [Kiem Thu](#kiem-thu)
-- [Output Bao Cao](#output-bao-cao)
+- [Run The Pipeline](#run-the-pipeline)
+- [Resume And Debug](#resume-and-debug)
+- [Tests](#tests)
+- [Report Outputs](#report-outputs)
 
-## Tong Quan Setup
+## Setup Overview
 
-Pipeline được thiết kế để chạy trong Docker. Image tự cài Python dependencies, CodeQL CLI và CodeQL query repo. Host chỉ cần Docker/Compose và file `.env` chứa API key.
+The pipeline is designed to run inside Docker. The image installs Python dependencies, the CodeQL CLI, and the CodeQL query repository. The host only needs Docker/Compose and a `.env` file containing the Gemini API key.
 
-## Tai Lieu Lien Quan
+## Related Documents
 
-- [readme.md](readme.md): Tổng quan project, cấu trúc repo, lệnh nhanh và kết quả full run.
-- [agent.md](agent.md): Kế hoạch thí nghiệm, mapping model, metrics và trạng thái kết quả.
+- [readme.md](readme.md): Project overview, repository structure, quick commands, and full-run results.
+- [agent.md](agent.md): Experiment plan, model mapping, metrics, and current result status.
 
-Tóm tắt nhanh:
+Quick summary:
 
-| File | Tóm tắt |
+| File | Summary |
 |---|---|
-| [readme.md](readme.md) | Nên đọc đầu tiên để hiểu repo và output chính. |
-| [agent.md](agent.md) | Dùng khi cần kiểm tra logic thí nghiệm và cách tính metrics. |
+| [readme.md](readme.md) | Read this first to understand the repository and the primary outputs. |
+| [agent.md](agent.md) | Use this when checking experiment logic and metric definitions. |
 
-## Yeu Cau
+## Requirements
 
-- Docker Desktop hoặc Docker Engine.
+- Docker Desktop or Docker Engine.
 - Docker Compose v2.
-- Network để tải base image, Python packages, CodeQL CLI/query repo và gọi Gemini API.
-- API key có quyền gọi Gemini API.
+- Network access for base images, Python packages, CodeQL CLI/query repo downloads, and Gemini API calls.
+- An API key allowed to call the Gemini API.
 
-Kiểm tra Docker:
+Check Docker:
 
 ```powershell
 docker version
 docker compose version
 ```
 
-## Cau Hinh API Key
+## API Key Configuration
 
-Tạo file `.env` ở repo root:
+Create a `.env` file at the repository root:
 
 ```env
 GEMINI_API_KEY=your_api_key_here
 ```
 
-Không commit `.env`. File này đã được ignore.
+Do not commit `.env`; it is already ignored.
 
-Model và RPM mặc định nằm trong [config.example.toml](config.example.toml):
+Default model and RPM settings are in [config.example.toml](config.example.toml):
 
 ```toml
 [models.gemini]
@@ -70,28 +70,28 @@ rpm = 15
 docker compose build
 ```
 
-Image sẽ cài:
+The image installs:
 
 - Python 3.12.
-- `google-genai`, `requests`, `pytest`, `pytest-asyncio`.
+- `google-genai`, `requests`, `pytest`, and `pytest-asyncio`.
 - CodeQL CLI `v2.25.4`.
-- CodeQL query repo tương ứng.
+- The matching CodeQL query repository.
 
-## Chay Pipeline
+## Run The Pipeline
 
-Tải dataset:
+Download the dataset:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py prepare
 ```
 
-Chạy full workflow:
+Run the full workflow:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py all --run-id full-securityeval --max-concurrency 64
 ```
 
-Chạy từng bước:
+Run individual steps:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py run --run-id full-securityeval --experiments vanilla,self_hints --max-concurrency 64 --skip-codeql
@@ -99,60 +99,60 @@ docker compose run --rm runner python run_experiments.py scan --run-id full-secu
 docker compose run --rm runner python run_experiments.py report --run-id full-securityeval
 ```
 
-Mock run không gọi API thật:
+Mock run without real API calls:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py run --run-id smoke --limit 2 --mock-llm --experiments vanilla,self_hints --skip-codeql
 ```
 
-## Resume Va Debug
+## Resume And Debug
 
-Pipeline cache theo:
+The pipeline caches outputs at:
 
 ```text
 runs/<run_id>/responses/<experiment>/<model>/<kind>/<sample>.json
 runs/<run_id>/code/<experiment>/<model>/<sample>.py
 ```
 
-Nếu Docker/API lỗi giữa chừng, chạy lại cùng `--run-id`; file đã có sẽ được bỏ qua.
+If Docker or the API fails mid-run, rerun with the same `--run-id`; existing files are skipped.
 
-Kiểm tra container nền:
+Inspect a background container:
 
 ```powershell
 docker ps -a --filter "name=da-full-securityeval"
 docker logs da-full-securityeval --tail 200
 ```
 
-Chạy nền:
+Run in the background:
 
 ```powershell
 docker compose run -d --name da-full-securityeval runner python run_experiments.py all --run-id full-securityeval --max-concurrency 64
 ```
 
-Dừng và xóa container nền:
+Stop and remove the background container:
 
 ```powershell
 docker stop da-full-securityeval
 docker rm da-full-securityeval
 ```
 
-## Kiem Thu
+## Tests
 
-Chạy unit tests:
+Run unit tests:
 
 ```powershell
 docker compose run --rm runner python -m unittest discover -s tests
 ```
 
-Compile check:
+Run compile checks:
 
 ```powershell
 docker compose run --rm runner python -m compileall run_experiments.py secure_code_eval tests
 ```
 
-## Output Bao Cao
+## Report Outputs
 
-Report chính:
+Primary reports:
 
 ```text
 runs/full-securityeval/reports/summary.md
@@ -160,7 +160,7 @@ runs/full-securityeval/reports/metrics.csv
 runs/full-securityeval/reports/findings.csv
 ```
 
-Tạo lại report từ artifact đã có:
+Regenerate reports from existing artifacts:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py report --run-id full-securityeval

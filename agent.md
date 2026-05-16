@@ -1,93 +1,93 @@
 # Agent Plan: SecurityEval LLM Security Experiments
 
-## Muc Luc
+## Table Of Contents
 
-- [Muc Dich](#muc-dich)
-- [Tai Lieu Lien Quan](#tai-lieu-lien-quan)
-- [Pham Vi Thi Nghiem](#pham-vi-thi-nghiem)
-- [Model Va Rate Limit](#model-va-rate-limit)
-- [Pipeline Tu Dong Hoa](#pipeline-tu-dong-hoa)
-- [Chi So Bao Cao](#chi-so-bao-cao)
-- [Trang Thai Hien Tai](#trang-thai-hien-tai)
-- [Lenh Van Hanh Nhanh](#lenh-van-hanh-nhanh)
+- [Purpose](#purpose)
+- [Related Documents](#related-documents)
+- [Experiment Scope](#experiment-scope)
+- [Models And Rate Limits](#models-and-rate-limits)
+- [Automation Pipeline](#automation-pipeline)
+- [Report Metrics](#report-metrics)
+- [Current Status](#current-status)
+- [Quick Operations](#quick-operations)
 
-## Muc Dich
+## Purpose
 
-Tài liệu này mô tả vai trò của agent/pipeline trong việc tái tạo thí nghiệm từ bài báo **Guiding AI to Fix Its Own Flaws** cho bộ dữ liệu SecurityEval. Mục tiêu là đo khả năng sinh mã Python an toàn và sửa lỗi bảo mật của các LLM khi được quét bằng CodeQL.
+This document explains the role of the automation agent and pipeline for reproducing SecurityEval experiments inspired by **Guiding AI to Fix Its Own Flaws**. The goal is to measure how well LLMs generate secure Python code and repair CodeQL-detected security issues.
 
-## Tai Lieu Lien Quan
+## Related Documents
 
-- [readme.md](readme.md): Tổng quan repo, cấu trúc mã nguồn, kết quả full run và các lệnh chính.
-- [setup.md](setup.md): Hướng dẫn thiết lập Docker, API key, build image, chạy thí nghiệm, resume và debug.
+- [readme.md](readme.md): Repository overview, source layout, full-run results, and the main commands.
+- [setup.md](setup.md): Docker setup, API key configuration, image build, experiment execution, resume, and debugging guide.
 
-Tóm tắt nhanh:
+Quick summary:
 
-| File | Vai trò |
+| File | Role |
 |---|---|
-| [readme.md](readme.md) | Điểm bắt đầu cho người đọc repo, giải thích project làm gì và output nằm ở đâu. |
-| [setup.md](setup.md) | Checklist vận hành chi tiết để dựng môi trường và chạy lại pipeline. |
+| [readme.md](readme.md) | Start here to understand what the project does and where outputs are written. |
+| [setup.md](setup.md) | Operational checklist for building the environment and rerunning the pipeline. |
 
-## Pham Vi Thi Nghiem
+## Experiment Scope
 
-Pipeline hiện chạy **SecurityEval only** với 121 task Python. Mỗi task có prompt lập trình và target CWE được suy ra từ `ID` của dataset.
+The pipeline currently runs **SecurityEval only**, using 121 Python tasks. Each task contains a programming prompt, and the target CWE is inferred from the dataset `ID`.
 
-Các nhánh thí nghiệm:
+Experiment branches:
 
 1. **Vanilla prompting**
-   - Gemini và Gemma sinh code trực tiếp từ task.
-   - Không có nhắc nhở bảo mật bổ sung.
+   - Gemini and Gemma generate code directly from the task.
+   - No additional security guidance is provided.
 
 2. **Self-generated hints**
-   - Mỗi model tự sinh 5 gợi ý rủi ro bảo mật cho task.
-   - Chính model đó dùng hints vừa sinh để sinh code mới.
+   - Each model generates 5 security-risk hints for the task.
+   - The same model then uses those hints to generate new code.
 
 3. **Direct repair**
-   - Chỉ áp dụng cho các sample baseline bị CodeQL cảnh báo.
-   - Model sửa code của chính nó bằng raw CodeQL feedback.
+   - Applied only to baseline samples with CodeQL findings.
+   - Each model repairs its own vulnerable baseline code using raw CodeQL feedback.
 
 4. **Explained repair**
-   - Chỉ áp dụng cho baseline Gemma bị CodeQL cảnh báo.
-   - Gemini sinh explained feedback.
-   - Gemma dùng explained feedback để sửa code.
+   - Applied only to Gemma baseline samples with CodeQL findings.
+   - Gemini writes explained feedback.
+   - Gemma uses that explained feedback to repair the code.
 
-## Model Va Rate Limit
+## Models And Rate Limits
 
-Rate limit mặc định trong [config.example.toml](config.example.toml):
+Default limits in [config.example.toml](config.example.toml):
 
 | Alias | Model ID | RPM |
 |---|---|---:|
 | `gemini` | `gemini-3.1-flash-lite` | 15 |
 | `gemma` | `gemma-4-31b-it` | 15 |
 
-Scheduler dùng `asyncio` với limiter riêng theo model. Các request của hai model được chạy song song, nhưng mỗi model vẫn được dispatch cách nhau tối thiểu khoảng 4 giây để giữ 15 RPM.
+The scheduler uses `asyncio` with one limiter per model. Requests for both models can run concurrently, while each model is dispatched at least about 4 seconds apart to stay within 15 RPM.
 
-## Pipeline Tu Dong Hoa
+## Automation Pipeline
 
-Entry point chính là [run_experiments.py](run_experiments.py).
+The main entry point is [run_experiments.py](run_experiments.py).
 
-Các module quan trọng:
+Important modules:
 
-| Module | Chức năng |
+| Module | Responsibility |
 |---|---|
-| [secure_code_eval/datasets.py](secure_code_eval/datasets.py) | Tải và đọc SecurityEval, chuẩn hóa CWE. |
-| [secure_code_eval/llm.py](secure_code_eval/llm.py) | Gọi Gemini API qua REST, timeout/retry/cache response. |
-| [secure_code_eval/rate_limit.py](secure_code_eval/rate_limit.py) | Giới hạn tốc độ request theo model. |
-| [secure_code_eval/prompts.py](secure_code_eval/prompts.py) | Prompt templates cho vanilla, hints, repair. |
-| [secure_code_eval/codeql.py](secure_code_eval/codeql.py) | Tạo CodeQL database và chạy analyze. |
-| [secure_code_eval/sarif.py](secure_code_eval/sarif.py) | Parse SARIF và map findings về sample/model. |
-| [secure_code_eval/metrics.py](secure_code_eval/metrics.py) | Tính metrics và ghi CSV. |
-| [secure_code_eval/pipeline.py](secure_code_eval/pipeline.py) | Điều phối toàn bộ workflow. |
+| [secure_code_eval/datasets.py](secure_code_eval/datasets.py) | Download and load SecurityEval, normalize CWE IDs. |
+| [secure_code_eval/llm.py](secure_code_eval/llm.py) | Call the Gemini API through REST, with timeout, retry, and response cache support. |
+| [secure_code_eval/rate_limit.py](secure_code_eval/rate_limit.py) | Enforce per-model request start-rate limits. |
+| [secure_code_eval/prompts.py](secure_code_eval/prompts.py) | Prompt templates for vanilla generation, hints, and repair. |
+| [secure_code_eval/codeql.py](secure_code_eval/codeql.py) | Create CodeQL databases and run analysis. |
+| [secure_code_eval/sarif.py](secure_code_eval/sarif.py) | Parse SARIF and map findings back to samples and models. |
+| [secure_code_eval/metrics.py](secure_code_eval/metrics.py) | Compute metrics and write CSV outputs. |
+| [secure_code_eval/pipeline.py](secure_code_eval/pipeline.py) | Orchestrate the full workflow. |
 
-## Chi So Bao Cao
+## Report Metrics
 
-Các chỉ số chính:
+Main metrics:
 
-- `TarV-R`: tỷ lệ sample bị phát hiện đúng CWE mục tiêu.
-- `AllV-R`: tỷ lệ sample có bất kỳ finding bảo mật nào.
-- `Repair Rate`: tỷ lệ sample lỗi baseline được sửa sạch sau repair.
-- `post_repair_AllV-R`: tỷ lệ còn lỗi sau repair trên tập sample ban đầu bị lỗi.
+- `TarV-R`: fraction of samples where the target CWE is detected.
+- `AllV-R`: fraction of samples with any security finding.
+- `Repair Rate`: fraction of vulnerable baseline samples that are clean after repair.
+- `post_repair_AllV-R`: remaining vulnerable rate after repair over the initially vulnerable subset.
 
-Output mặc định nằm trong:
+Default output locations:
 
 - `runs/<run_id>/code/`
 - `runs/<run_id>/responses/`
@@ -96,17 +96,17 @@ Output mặc định nằm trong:
 - `runs/<run_id>/reports/metrics.csv`
 - `runs/<run_id>/reports/findings.csv`
 
-## Trang Thai Hien Tai
+## Current Status
 
-Full run đã chạy với `run_id=full-securityeval`.
+A full run has been completed with `run_id=full-securityeval`.
 
-Report chính:
+Primary reports:
 
 - [runs/full-securityeval/reports/summary.md](runs/full-securityeval/reports/summary.md)
 - [runs/full-securityeval/reports/metrics.csv](runs/full-securityeval/reports/metrics.csv)
 - [runs/full-securityeval/reports/findings.csv](runs/full-securityeval/reports/findings.csv)
 
-Tóm tắt kết quả:
+Result summary:
 
 | Experiment | Model | N | TarV-R | AllV-R | Repair Rate |
 |---|---:|---:|---:|---:|---:|
@@ -118,7 +118,7 @@ Tóm tắt kết quả:
 | direct_repair | gemma | 38 | 0.00% | 26.32% | 73.68% |
 | explained_repair | gemma | 38 | 0.00% | 21.05% | 78.95% |
 
-## Lenh Van Hanh Nhanh
+## Quick Operations
 
 ```powershell
 docker compose build
@@ -127,4 +127,4 @@ docker compose run --rm runner python run_experiments.py all --run-id full-secur
 docker compose run --rm runner python run_experiments.py report --run-id full-securityeval
 ```
 
-Chi tiết setup nằm trong [setup.md](setup.md).
+See [setup.md](setup.md) for the complete setup and operations guide.
