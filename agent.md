@@ -7,6 +7,7 @@
 - [Experiment Scope](#experiment-scope)
 - [Models And Rate Limits](#models-and-rate-limits)
 - [Automation Pipeline](#automation-pipeline)
+- [Notebook Demos](#notebook-demos)
 - [Report Metrics](#report-metrics)
 - [Current Status](#current-status)
 - [Quick Operations](#quick-operations)
@@ -50,6 +51,8 @@ Experiment branches:
    - Gemini writes explained feedback.
    - Gemma uses that explained feedback to repair the code.
 
+The Docker pipeline defaults to Gemini and Gemma. Use `--target-models` to limit generation and reporting to selected aliases.
+
 ## Models And Rate Limits
 
 Default limits in [config.example.toml](config.example.toml):
@@ -60,6 +63,13 @@ Default limits in [config.example.toml](config.example.toml):
 | `gemma` | `gemma-4-31b-it` | 15 |
 
 The scheduler uses `asyncio` with one limiter per model. Requests for both models can run concurrently, while each model is dispatched at least about 4 seconds apart to stay within 15 RPM.
+
+Selected-model runs must pass the same alias to generation/reporting and, for `all`, to scanning:
+
+```powershell
+docker compose run --rm runner python run_experiments.py all --run-id gemma-only --target-models gemma --models gemma --max-concurrency 64
+docker compose run --rm runner python run_experiments.py report --run-id gemma-only --target-models gemma
+```
 
 ## Automation Pipeline
 
@@ -77,6 +87,18 @@ Important modules:
 | [secure_code_eval/sarif.py](secure_code_eval/sarif.py) | Parse SARIF and map findings back to samples and models. |
 | [secure_code_eval/metrics.py](secure_code_eval/metrics.py) | Compute metrics and write CSV outputs. |
 | [secure_code_eval/pipeline.py](secure_code_eval/pipeline.py) | Orchestrate the full workflow. |
+
+## Notebook Demos
+
+The repository tracks Colab notebook code in `notebooks/`:
+
+| Notebook | Role |
+|---|---|
+| [notebooks/securityeval_llama32_3b_full.ipynb](notebooks/securityeval_llama32_3b_full.ipynb) | Full Llama 3.2 3B Instruct SecurityEval workflow. |
+| [notebooks/securityeval_llama32_3b_one_sample_codeql_demo.ipynb](notebooks/securityeval_llama32_3b_one_sample_codeql_demo.ipynb) | One-sample Llama 3.2 3B CodeQL demo. |
+| [notebooks/securityeval_qwen35_4b_full.ipynb](notebooks/securityeval_qwen35_4b_full.ipynb) | Full Qwen3.5 4B SecurityEval workflow. |
+
+Notebook outputs and execution counts are cleared before commit. Notebook-generated zips, reports, CodeQL databases, and run directories are result artifacts and should remain untracked.
 
 ## Report Metrics
 
@@ -100,11 +122,15 @@ Default output locations:
 
 A full run has been completed with `run_id=full-securityeval`.
 
-Primary reports:
+Primary reports are generated locally under:
 
-- [runs/full-securityeval/reports/summary.md](runs/full-securityeval/reports/summary.md)
-- [runs/full-securityeval/reports/metrics.csv](runs/full-securityeval/reports/metrics.csv)
-- [runs/full-securityeval/reports/findings.csv](runs/full-securityeval/reports/findings.csv)
+```text
+runs/full-securityeval/reports/summary.md
+runs/full-securityeval/reports/metrics.csv
+runs/full-securityeval/reports/findings.csv
+```
+
+These generated result files are intentionally not tracked in Git.
 
 Result summary:
 
@@ -125,6 +151,7 @@ docker compose build
 docker compose run --rm runner python run_experiments.py prepare
 docker compose run --rm runner python run_experiments.py all --run-id full-securityeval --max-concurrency 64
 docker compose run --rm runner python run_experiments.py report --run-id full-securityeval
+docker compose run --rm runner python run_experiments.py all --run-id gemma-only --target-models gemma --models gemma --max-concurrency 64
 ```
 
 See [setup.md](setup.md) for the complete setup and operations guide.

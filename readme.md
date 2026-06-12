@@ -6,15 +6,16 @@
 - [Related Documents](#related-documents)
 - [Key Features](#key-features)
 - [Repository Layout](#repository-layout)
+- [Notebook Demos](#notebook-demos)
 - [Full Run Results](#full-run-results)
 - [Quick Commands](#quick-commands)
 - [Secrets And Generated Data](#secrets-and-generated-data)
 
 ## Overview
 
-This repository automates SecurityEval experiments for evaluating how **Gemini 3.1 Flash-Lite** and **Gemma 4 31B IT** generate secure Python code and repair security issues. The pipeline calls the models, stores responses and extracted code, runs CodeQL, parses SARIF, and exports Markdown/CSV reports.
+This repository automates SecurityEval experiments for evaluating how **Gemini 3.1 Flash-Lite** and **Gemma 4 31B IT** generate secure Python code and repair security issues. The Docker pipeline calls the models, stores responses and extracted code, runs CodeQL, parses SARIF, and exports Markdown/CSV reports.
 
-Everything runs through Docker so the host does not need a local Python, CodeQL CLI, or CodeQL query installation.
+Everything in the core pipeline runs through Docker so the host does not need a local Python, CodeQL CLI, or CodeQL query installation. The repository also includes Colab notebook code for Llama 3.2 3B and Qwen3.5 4B SecurityEval runs.
 
 ## Related Documents
 
@@ -33,9 +34,11 @@ Quick summary:
 - Downloads the 121-task SecurityEval dataset.
 - Runs 4 branches: `vanilla`, `self_hints`, `direct_repair`, and `explained_repair`.
 - Runs Gemini and Gemma concurrently while respecting 15 RPM per model.
+- Supports selecting model aliases with `--target-models` for generation and reporting.
 - Caches responses and generated code so runs can resume without repeating completed API calls.
 - Runs CodeQL inside Docker and exports SARIF.
 - Exports `summary.md`, `metrics.csv`, and `findings.csv`.
+- Includes output-free Colab notebooks for Llama 3.2 3B and Qwen3.5 4B experiment code.
 
 ## Repository Layout
 
@@ -45,6 +48,10 @@ Quick summary:
 |-- docker-compose.yml
 |-- config.example.toml
 |-- run_experiments.py
+|-- notebooks/
+|   |-- securityeval_llama32_3b_full.ipynb
+|   |-- securityeval_llama32_3b_one_sample_codeql_demo.ipynb
+|   `-- securityeval_qwen35_4b_full.ipynb
 |-- secure_code_eval/
 |   |-- codeql.py
 |   |-- config.py
@@ -71,15 +78,29 @@ Generated directories:
 | `runs/` | Generated code, raw responses, CodeQL DB/SARIF files, and reports. |
 | `.cache/` | Optional supporting cache. |
 
+Local-only artifacts such as `demo/`, `reports/`, extracted CodeQL databases, and downloaded tool archives should not be committed.
+
+## Notebook Demos
+
+Tracked notebooks are code templates only. Their outputs and execution counts are cleared before commit.
+
+| Notebook | Purpose |
+|---|---|
+| [notebooks/securityeval_llama32_3b_full.ipynb](notebooks/securityeval_llama32_3b_full.ipynb) | Full SecurityEval workflow for `meta-llama/Llama-3.2-3B-Instruct`. |
+| [notebooks/securityeval_llama32_3b_one_sample_codeql_demo.ipynb](notebooks/securityeval_llama32_3b_one_sample_codeql_demo.ipynb) | One-sample Llama 3.2 3B demo with real CodeQL scans. |
+| [notebooks/securityeval_qwen35_4b_full.ipynb](notebooks/securityeval_qwen35_4b_full.ipynb) | Full SecurityEval workflow for Qwen3.5 4B. |
+
 ## Full Run Results
 
-The completed full run is available at:
+Full-run outputs are generated locally under:
 
-- [runs/full-securityeval/reports/summary.md](runs/full-securityeval/reports/summary.md)
-- [runs/full-securityeval/reports/metrics.csv](runs/full-securityeval/reports/metrics.csv)
-- [runs/full-securityeval/reports/findings.csv](runs/full-securityeval/reports/findings.csv)
+```text
+runs/full-securityeval/reports/summary.md
+runs/full-securityeval/reports/metrics.csv
+runs/full-securityeval/reports/findings.csv
+```
 
-Summary:
+Those files are not tracked in Git because they are generated results. Latest local result snapshot:
 
 | Experiment | Model | N | TarV-R | AllV-R | Repair Rate |
 |---|---:|---:|---:|---:|---:|
@@ -111,14 +132,28 @@ Run the full dataset:
 docker compose run --rm runner python run_experiments.py all --run-id full-securityeval --max-concurrency 64
 ```
 
+Run only one model alias:
+
+```powershell
+docker compose run --rm runner python run_experiments.py all --run-id gemma-only --target-models gemma --models gemma --max-concurrency 64
+```
+
 Regenerate the report from existing artifacts:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py report --run-id full-securityeval
 ```
 
+Regenerate a selected-model report:
+
+```powershell
+docker compose run --rm runner python run_experiments.py report --run-id gemma-only --target-models gemma
+```
+
 ## Secrets And Generated Data
 
 - `.env` stores the API key and is ignored by [.gitignore](.gitignore).
 - `data/`, `runs/`, and `.cache/` are not tracked to avoid committing datasets, raw model responses, CodeQL databases, and large reports.
+- `notebooks/` is tracked as code, but notebook outputs and execution counts should stay empty.
+- `demo/`, `reports/`, downloaded presentation tooling, and extracted CodeQL/database artifacts are local generated files and should stay out of commits.
 - If an API key has been shared through chat or logs, rotate it in Google AI Studio before long-term use.

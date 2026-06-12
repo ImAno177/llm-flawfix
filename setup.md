@@ -8,6 +8,7 @@
 - [API Key Configuration](#api-key-configuration)
 - [Build Docker](#build-docker)
 - [Run The Pipeline](#run-the-pipeline)
+- [Notebook Demos](#notebook-demos)
 - [Resume And Debug](#resume-and-debug)
 - [Tests](#tests)
 - [Report Outputs](#report-outputs)
@@ -99,11 +100,30 @@ docker compose run --rm runner python run_experiments.py scan --run-id full-secu
 docker compose run --rm runner python run_experiments.py report --run-id full-securityeval
 ```
 
+Run and report only one model alias:
+
+```powershell
+docker compose run --rm runner python run_experiments.py all --run-id gemma-only --target-models gemma --models gemma --max-concurrency 64
+docker compose run --rm runner python run_experiments.py report --run-id gemma-only --target-models gemma
+```
+
 Mock run without real API calls:
 
 ```powershell
 docker compose run --rm runner python run_experiments.py run --run-id smoke --limit 2 --mock-llm --experiments vanilla,self_hints --skip-codeql
 ```
+
+## Notebook Demos
+
+The `notebooks/` directory contains Colab-ready code notebooks:
+
+| Notebook | Use |
+|---|---|
+| `securityeval_llama32_3b_full.ipynb` | Full SecurityEval workflow for Llama 3.2 3B Instruct. |
+| `securityeval_llama32_3b_one_sample_codeql_demo.ipynb` | One-sample Llama 3.2 3B demo with real CodeQL scans. |
+| `securityeval_qwen35_4b_full.ipynb` | Full SecurityEval workflow for Qwen3.5 4B. |
+
+Notebook outputs are intentionally cleared before commit. Generated archives, reports, CodeQL databases, and run directories created by the notebooks should remain local artifacts.
 
 ## Resume And Debug
 
@@ -152,13 +172,15 @@ docker compose run --rm runner python -m compileall run_experiments.py secure_co
 
 ## Report Outputs
 
-Primary reports:
+Primary reports are generated locally:
 
 ```text
 runs/full-securityeval/reports/summary.md
 runs/full-securityeval/reports/metrics.csv
 runs/full-securityeval/reports/findings.csv
 ```
+
+These result files are not tracked in Git.
 
 Regenerate reports from existing artifacts:
 
