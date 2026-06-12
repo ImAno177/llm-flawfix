@@ -41,6 +41,11 @@ class Pipeline:
     run_id: str
     mock_llm: bool = False
     max_concurrency: int = 16
+    target_models: list[str] | None = None
+
+    @property
+    def model_aliases(self) -> list[str]:
+        return self.target_models or MODEL_ALIASES
 
     @property
     def data_dir(self) -> Path:
@@ -93,25 +98,25 @@ class Pipeline:
     ) -> None:
         missing = [
             task
-            for alias in MODEL_ALIASES
+            for alias in self.model_aliases
             for task in tasks
             if not self.code_file("vanilla", alias, task).exists()
         ]
         if missing:
             await self.run_vanilla(tasks, llm)
-        if not skip_codeql and not all(self.has_scan("vanilla", alias) for alias in MODEL_ALIASES):
+        if not skip_codeql and not all(self.has_scan("vanilla", alias) for alias in self.model_aliases):
             self.scan_experiment("vanilla")
 
     async def run_vanilla(self, tasks: list[SecurityTask], llm: ScheduledLLM) -> None:
         coros = [
             self._generate_code("vanilla", alias, task, vanilla_prompt(task.prompt), llm)
             for task in tasks
-            for alias in MODEL_ALIASES
+            for alias in self.model_aliases
         ]
         await self._run_bounded(coros)
 
     async def run_self_hints(self, tasks: list[SecurityTask], llm: ScheduledLLM) -> None:
-        coros = [self._run_self_hint_sample(alias, task, llm) for task in tasks for alias in MODEL_ALIASES]
+        coros = [self._run_self_hint_sample(alias, task, llm) for task in tasks for alias in self.model_aliases]
         await self._run_bounded(coros)
 
     async def run_direct_repair(
@@ -123,7 +128,7 @@ class Pipeline:
         if skip_codeql:
             return
         coros = []
-        for alias in MODEL_ALIASES:
+        for alias in self.model_aliases:
             baseline_findings = self.findings_for("vanilla", alias)
             grouped = group_findings_by_sample(baseline_findings)
             for task in tasks:
@@ -142,6 +147,8 @@ class Pipeline:
         skip_codeql: bool = False,
     ) -> None:
         if skip_codeql:
+            return
+        if "gemma" not in self.model_aliases:
             return
         baseline_findings = self.findings_for("vanilla", "gemma")
         grouped = group_findings_by_sample(baseline_findings)
@@ -270,18 +277,22 @@ class Pipeline:
         tasks = self.load_tasks(limit=limit)
         rows: list[MetricRow] = []
         for experiment in GENERATION_EXPERIMENTS:
-            for alias in MODEL_ALIASES:
+            for alias in self.model_aliases:
                 if self.has_scan(experiment, alias):
                     findings = self.findings_for(experiment, alias)
                     rows.append(compute_generation_metrics(experiment, alias, tasks, findings))
 
-        for alias in MODEL_ALIASES:
+        for alias in self.model_aliases:
             if self.has_scan("vanilla", alias) and self.has_scan("direct_repair", alias):
                 baseline = self.findings_for("vanilla", alias)
                 repair = self.findings_for("direct_repair", alias)
                 rows.append(compute_repair_metrics("direct_repair", alias, baseline, repair))
 
-        if self.has_scan("vanilla", "gemma") and self.has_scan("explained_repair", "gemma"):
+        if (
+            "gemma" in self.model_aliases
+            and self.has_scan("vanilla", "gemma")
+            and self.has_scan("explained_repair", "gemma")
+        ):
             baseline = self.findings_for("vanilla", "gemma")
             repair = self.findings_for("explained_repair", "gemma")
             rows.append(compute_repair_metrics("explained_repair", "gemma", baseline, repair))

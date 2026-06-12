@@ -30,6 +30,7 @@ def main(argv: list[str] | None = None) -> int:
         run_id=run_id,
         mock_llm=getattr(args, "mock_llm", False),
         max_concurrency=getattr(args, "max_concurrency", 16),
+        target_models=parse_models(getattr(args, "target_models", "gemini,gemma")),
     )
 
     if args.command == "run":
@@ -89,6 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
         command_parser.add_argument("--limit", type=int, default=None)
         command_parser.add_argument("--mock-llm", action="store_true")
         command_parser.add_argument("--max-concurrency", type=int, default=16)
+        command_parser.add_argument("--target-models", default="gemini,gemma", help="Comma-separated model aliases to generate.")
 
     run = sub.add_parser("run", help="Generate code and repair outputs.")
     add_common(run)
@@ -105,6 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("--config", default="config.example.toml")
     report.add_argument("--run-id", required=True)
     report.add_argument("--limit", type=int, default=None)
+    report.add_argument("--target-models", default="gemini,gemma", help="Comma-separated model aliases to report.")
 
     all_cmd = sub.add_parser("all", help="Prepare, run, scan, and report.")
     add_common(all_cmd)
